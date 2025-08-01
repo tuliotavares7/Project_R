@@ -1,0 +1,312 @@
+---
+title: "gestao hospitalar"
+author: "Túlio Tavares"
+format: pdf
+editor: visual
+---
+
+## Pacotes
+
+```{r}
+library(writexl)
+library(DescTools)
+library(e1071)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(leaflet)
+library(readr)
+library(lubridate)
+
+```
+
+## Abrindo arquivos
+
+```{r}
+caminho <- "C:/Users/tulio/Documents/portfolio/gestao_hospitalar/archive (1)"
+
+appointments <- read.csv(file.path(caminho, "appointments.csv"))
+billing <- read.csv(file.path(caminho, "billing.csv"))
+doctors <- read.csv(file.path(caminho, "doctors.csv"))
+patients <- read.csv(file.path(caminho, "patients.csv"))
+treatments <- read.csv(file.path(caminho, "treatments.csv"))
+
+```
+
+## Verificação básica
+
+```{r}
+
+str(appointments)
+head(appointments)
+
+str(billing)
+head(billing)
+
+str(doctors)
+head(doctors)
+
+str(patients)
+head(patients)
+
+str(treatments)
+head(treatments)
+```
+
+## Conversão de data/hora
+
+```{r}
+
+# Appointments
+appointments$appointment_date <- as.Date(appointments$appointment_date)
+appointments$appointment_time <- format(strptime(appointments$appointment_time, "%H:%M:%S"), "%H:%M:%S")
+
+# Billing
+billing$bill_date <- as.Date(billing$bill_date)
+
+# Patients
+patients$date_of_birth <- as.Date(patients$date_of_birth)
+patients$registration_date <- as.Date(patients$registration_date)
+
+# Treatments
+treatments$treatment_date <- as.Date(treatments$treatment_date)
+
+```
+
+## Estatística descritiva de faturamento
+
+```{r}
+
+billing_summary <- billing %>%
+  summarise(
+    total_faturado = sum(amount, na.rm = TRUE),
+    media_faturamento = mean(amount, na.rm = TRUE),
+    mediana_faturamento = median(amount, na.rm = TRUE),
+    desvio_padrao = sd(amount, na.rm = TRUE),
+    minimo = min(amount, na.rm = TRUE),
+    maximo = max(amount, na.rm = TRUE),
+    n = n()
+  )
+print(billing_summary)
+
+```
+
+### Faturamento por tipo de tratamento
+
+```{r}
+billing_treatments <- billing %>%
+  left_join(treatments, by = "treatment_id") %>%
+  group_by(treatment_type) %>%
+  summarise(
+    media_valor = mean(amount, na.rm = TRUE),
+    total_valor = sum(amount, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_valor))
+print(billing_treatments)
+
+
+```
+
+### Consulta por status
+
+```{r}
+
+appointments_status <- appointments %>%
+  count(status)
+print(appointments_status)
+
+```
+
+### Consulta por especialidade medica
+
+```{r}
+
+appointments_by_specialty <- appointments %>%
+  left_join(doctors, by = "doctor_id") %>%
+  count(specialization, sort = TRUE)
+print(appointments_by_specialty)
+
+```
+
+### faturamento por tipo de tratamento
+
+```{r}
+
+ggplot(billing_treatments, aes(x = reorder(treatment_type, -media_valor), y = media_valor)) +
+  geom_col(fill = "steelblue") +
+  labs(
+    title = "Faturamento Médio por Tipo de Tratamento",
+    x = "Tipo de Tratamento",
+    y = "Valor Médio (R$)"
+  ) +
+  theme_minimal(base_size = 14) +
+  coord_flip()
+
+```
+
+### numero de consultas por mes
+
+```{r}
+
+
+# Agrupar por mês
+appointments_monthly <- appointments %>%
+  mutate(mes = floor_date(appointment_date, "month")) %>%
+  count(mes)
+
+# Gráfico
+ggplot(appointments_monthly, aes(x = mes, y = n)) +
+  geom_line(color = "steelblue", size = 1.2) +
+  geom_point(color = "steelblue") +
+  labs(
+    title = "Número de Consultas por Mês",
+    x = "Mês",
+    y = "Quantidade de Consultas"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+### faturamento total por mes
+
+```{r}
+
+billing_monthly <- billing %>%
+  mutate(mes = floor_date(bill_date, "month")) %>%
+  group_by(mes) %>%
+  summarise(total = sum(amount, na.rm = TRUE), .groups = "drop")
+
+# Gráfico
+ggplot(billing_monthly, aes(x = mes, y = total)) +
+  geom_line(color = "darkgreen", size = 1.2) +
+  geom_point(color = "darkgreen") +
+  labs(
+    title = "Faturamento Total por Mês",
+    x = "Mês",
+    y = "Valor Faturado (R$)"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+### faturamento medio por mes 
+
+```{r}
+
+billing_avg_monthly <- billing %>%
+  mutate(mes = floor_date(bill_date, "month")) %>%
+  group_by(mes) %>%
+  summarise(media = mean(amount, na.rm = TRUE), .groups = "drop")
+
+ggplot(billing_avg_monthly, aes(x = mes, y = media)) +
+  geom_line(color = "tomato", size = 1.2) +
+  geom_point(color = "tomato") +
+  labs(
+    title = "Faturamento Médio por Mês",
+    x = "Mês",
+    y = "Valor Médio (R$)"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+### evolucoes de cancelamentos e faltas
+
+```{r}
+
+appointments_temporal_status <- appointments %>%
+  mutate(mes = floor_date(appointment_date, "month")) %>%
+  filter(status %in% c("Cancelled", "No-show")) %>%
+  count(mes, status)
+
+ggplot(appointments_temporal_status, aes(x = mes, y = n, color = status)) +
+  geom_line(size = 1.2) +
+  geom_point() +
+  labs(
+    title = "Evolução de Cancelamentos e Faltas",
+    x = "Mês",
+    y = "Quantidade de Ocorrências",
+    color = "Status"
+  ) +
+  theme_minimal(base_size = 14)
+
+```
+
+# Análise de regressão linear 
+
+```{r}
+# quais variaveis influenciam o valor faturado 
+modelo <- lm(amount ~ treatment_type + payment_method, data = billing %>%
+               left_join(treatments, by = "treatment_id"))
+summary(modelo)
+
+```
+
+# Análise de Variância (ANOVA)
+
+```{r}
+# o valor faturado muda significativamente entre diferentes tipos de tratamento?
+anova_model <- aov(amount ~ treatment_type, data = billing %>%
+                     left_join(treatments, by = "treatment_id"))
+summary(anova_model)
+
+```
+
+# Clustering de Pacientes 
+
+```{r}
+
+# agrupar pacientes com caracteristicas semelhantes como idade  
+
+
+# Pré-processamento: idade, total de consultas, total gasto
+pacientes_cluster <- billing %>%
+  left_join(patients, by = "patient_id") %>%
+  mutate(
+    idade = as.integer((Sys.Date() - as.Date(date_of_birth)) / 365.25)
+  ) %>%
+  group_by(patient_id, idade) %>%
+  summarise(
+    consultas = n(),
+    total_gasto = sum(amount, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  na.omit()
+
+# Clustering com k-means (3 grupos)
+set.seed(123)
+kmeans_result <- kmeans(pacientes_cluster[, c("idade", "consultas", "total_gasto")], centers = 3)
+
+pacientes_cluster$grupo <- as.factor(kmeans_result$cluster)
+
+# Visualizar
+ggplot(pacientes_cluster, aes(x = idade, y = total_gasto, color = grupo)) +
+  geom_point(size = 3) +
+  labs(title = "Clusters de Pacientes por Idade e Gasto Total") +
+  theme_minimal()
+
+
+```
+
+# Análise de Tempo entre Registro e 1° Consulta
+
+```{r}
+
+# quanto tempo esperam entre o cadastro e a primeira consulta
+
+tempo_espera <- appointments %>%
+  left_join(patients, by = "patient_id") %>%
+  group_by(patient_id) %>%
+  summarise(
+    registro = min(as.Date(registration_date)),
+    primeira_consulta = min(appointment_date),
+    dias_espera = as.numeric(primeira_consulta - registro)
+  )
+
+summary(tempo_espera$dias_espera)
+
+
+
+```
