@@ -266,3 +266,152 @@ Agradeço por acompanhar este projeto e espero que ele tenha demonstrado meu rac
 Obrigado!
 
 
+
+## Delivery Center
+
+### Introdução
+
+Neste projeto, utilizo o banco de dados Delivery Center: Food & Goods orders in Brazil, que contém sete tabelas principais, utilizadas para responder às perguntas propostas. Abaixo, segue a descrição de cada uma:
+- channels: contém informações sobre os canais de venda (marketplaces) utilizados pelos lojistas para vender alimentos (food) e produtos (goods).
+- deliveries: reúne dados sobre as entregas realizadas por entregadores parceiros.
+- drivers: apresenta informações sobre os entregadores parceiros, que atuam a partir dos hubs para entregar os pedidos aos consumidores.
+- hubs: contém dados sobre os centros de distribuição (hubs) de onde partem as entregas.
+- orders: reúne informações sobre as vendas processadas pela plataforma do Delivery Center.
+- payments: apresenta dados sobre os pagamentos feitos ao Delivery Center.
+- stores: traz informações sobre os lojistas que utilizam a plataforma para vender seus produtos nos marketplaces.
+
+### Analisando os dados
+
+Neste projeto, realizei uma análise exploratória utilizando a base de dados "Delivery Center: Food & Goods Orders in Brazil", que reúne informações sobre pedidos, entregadores, lojas, hubs logísticos, canais de venda e pagamentos. O objetivo foi compreender melhor o comportamento das entregas, os modais utilizados, os valores envolvidos nos pedidos e a prática de descontos por estado. Todo o processamento e análise foi feito em R, com auxílio de pacotes como dplyr, ggplot2, readr e writexl.
+
+```
+library(writexl)
+library(DescTools)
+library(e1071)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(leaflet)
+library(readr)
+
+caminho <- "C:/Users/tulio/Documents/portfolio/delivery_center/archive"
+
+channels   <- read_csv(file.path(caminho, "channels.csv"))
+deliveries <- read_csv(file.path(caminho, "deliveries.csv"))
+drivers    <- read_csv(file.path(caminho, "drivers.csv"))
+hubs       <- read_csv(file.path(caminho, "hubs.csv"))
+orders     <- read_csv(file.path(caminho, "orders.csv"))
+payments   <- read_csv(file.path(caminho, "payments.csv"))
+stores     <- read_csv(file.path(caminho, "stores.csv"))
+```
+
+Inicialmente, carreguei os arquivos da base, que inclui tabelas com os entregadores (drivers), pedidos (orders), entregas (deliveries), pagamentos (payments), hubs logísticos (hubs) e lojas (stores). Em seguida, comecei a explorar os dados de entrega em conjunto com o tipo de entregador e o modal utilizado (moto ou bicicleta). Agrupei os dados por tipo e modal para calcular a quantidade total de entregas, a taxa de sucesso (considerando apenas entregas com status "DELIVERED") e a distância média percorrida.
+
+```
+entregas_stats <- deliveries %>%
+  left_join(drivers, by = "driver_id") %>%
+  group_by(driver_type, driver_modal) %>%
+  summarise(
+    total_entregas = n(),
+    entregas_sucesso = sum(delivery_status == "DELIVERED", na.rm = TRUE),
+    taxa_sucesso_percentual = round(100 * entregas_sucesso / total_entregas, 2),
+    distancia_media_metros = round(mean(delivery_distance_meters, na.rm = TRUE), 2),
+    .groups = "drop"
+  )
+
+print(entregas_stats)
+```
+
+Essa análise revelou que os motoboys são responsáveis pelo maior volume de entregas, com distâncias médias superiores às dos bikers. Já os ciclistas (modal "BIKER") tendem a operar em faixas de curta distância, com menor variabilidade nas entregas. Foi possível observar ainda que entregas sem identificação de entregador são relativamente raras, o que reforça a confiabilidade dos cruzamentos feitos a seguir.
+
+```
+entregas_por_faixa <- deliveries %>%
+  filter(!is.na(driver_id)) %>%
+  left_join(drivers, by = "driver_id") %>%
+  left_join(orders, by = c("delivery_order_id" = "order_id")) %>%
+  mutate(
+    faixa_distancia = case_when(
+      delivery_distance_meters <= 1000 ~ "0-1 km",
+      delivery_distance_meters <= 3000 ~ "1-3 km",
+      delivery_distance_meters <= 5000 ~ "3-5 km",
+      TRUE ~ ">5 km"
+    )0
+  ) %>%
+  group_by(driver_modal, faixa_distancia) %>%
+  summarise(
+    qtd_entregas = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(driver_modal, faixa_distancia)
+
+print(entregas_por_faixa)
+```
+
+Em uma segunda etapa, analisei o valor médio dos pedidos, cruzando os dados de entrega com os dados dos pedidos e criando faixas de distância (0–1 km, 1–3 km, 3–5 km e acima de 5 km). Essa segmentação mostrou que o valor dos pedidos cresce com a distância, especialmente quando o modal é motoboy. 
+
+Avançando na análise, passei a investigar o comportamento dos pedidos em diferentes estados brasileiros, utilizando como referência o estado do hub logístico vinculado a cada pedido. O objetivo foi entender a distribuição do volume de pedidos, da receita bruta e líquida, e do desconto médio percentual aplicado. Para isso, filtrei apenas os pedidos com status "FINISHED" e pagamentos efetivados com status "PAID".
+
+A análise revelou que o volume de pedidos varia significativamente entre os estados, com algumas unidades da federação concentrando grande parte da operação logística. 
+
+```
+ggplot(desconto_estado, aes(x = reorder(state, -total_pedidos), y = total_pedidos)) +
+  geom_col(fill = "#1f78b4") +
+  labs(
+    title = "Total de Pedidos por Estado",
+    x = "Estado",
+    y = "Número de Pedidos"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+Em termos de descontos, alguns estados apresentaram valores médios superiores a 10%, o que pode indicar estratégias de precificação ou ambientes de maior competitividade. 
+ggplot(desconto_estado, aes(x = reorder(state, -desconto_medio_percentual), y = desconto_medio_percentual, fill = desconto_medio_percentual)) +
+  geom_col() +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  labs(
+    title = "Desconto Médio Percentual por Estado",
+    x = "Estado",
+    y = "Desconto Médio (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+Além disso, calculei estatísticas descritivas como média, mediana, desvio padrão, coeficiente de variação e quartis dos descontos médios por estado. Esses indicadores forneceram uma visão mais aprofundada da variabilidade nos descontos, reforçando que há regiões com políticas comerciais bastante distintas.
+
+Por fim, utilizei uma análise de variância (ANOVA) para verificar se o valor dos pedidos é influenciado pelo tipo de entregador e pelo modal utilizado. Os resultados da ANOVA fatorial indicaram que tanto o tipo quanto o modal têm efeito significativo sobre o valor médio dos pedidos. 
+
+```
+anova_result <- aov(order_amount ~ driver_type * driver_modal, data = dados_completos)
+summary(anova_result)
+```
+
+Uma análise post-hoc com o teste de Tukey confirmou que há diferenças estatísticas relevantes entre os grupos, sugerindo que, por exemplo, entregadores autônomos em motos podem operar em nichos diferentes dos entregadores contratados em bicicletas.
+
+```
+TukeyHSD(anova_result)
+```
+
+#### Limitações do Estudo
+
+Como toda análise baseada em dados secundários, este estudo apresenta algumas limitações importantes. A primeira diz respeito à cobertura da base de dados: embora rica em informações, ela reflete apenas o universo operacional do Delivery Center durante um determinado período, podendo não capturar sazonalidades, mudanças estratégicas ou eventos externos que afetem o comportamento logístico.
+
+Além disso, algumas variáveis possuem registros ausentes ou incompletos, como entregas sem identificação de entregador (driver_id ausente) ou pagamentos não conciliados. Embora essas observações tenham sido filtradas nas análises, sua presença pode indicar problemas de qualidade no registro dos dados.
+
+Também vale destacar que as análises se limitaram a medidas descritivas e inferenciais simples. Modelos preditivos ou multivariados mais robustos poderiam ser explorados em estudos futuros para prever valores de pedidos, estimar tempos de entrega ou segmentar perfis de entregadores com base em desempenho.
+
+#### Conclusão
+A análise exploratória do banco de dados do Delivery Center permitiu identificar padrões relevantes no comportamento logístico e comercial da plataforma, como a predominância dos motoboys em distâncias maiores, variações no valor dos pedidos conforme modal e tipo de entregador, além de diferenças regionais em volume de vendas e aplicação de descontos.
+
+Apesar das limitações da base, como registros ausentes e escopo temporal restrito, os resultados oferecem insights úteis para estratégias logísticas e comerciais. O estudo também abre caminho para análises mais robustas no futuro, com uso de modelos preditivos e segmentações mais refinadas.
+
+Agradeço por acompanhar este projeto e espero que ele tenha demonstrado meu raciocínio analítico, assim como minha capacidade de aplicar R na solução de problemas reais de negócio.
+
+Obrigado!
