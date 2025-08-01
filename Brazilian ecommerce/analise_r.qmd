@@ -1,0 +1,431 @@
+---
+title: "ecommerce"
+author: "tulio tavares"
+format: pdf
+editor: visual
+---
+
+## pacotes
+
+```{r}
+
+library(writexl)
+library(DescTools)
+library(e1071)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(leaflet)
+library(lubridate)
+library(randomForest)
+
+
+```
+
+```{r}
+
+olist_customers_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_customers_dataset.csv")
+
+olist_geolocation_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_geolocation_dataset.csv")
+
+olist_order_items_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_order_items_dataset.csv")
+
+olist_order_payments_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_order_payments_dataset.csv")
+
+olist_order_reviews_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_order_reviews_dataset.csv")
+
+olist_orders_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_orders_dataset.csv")
+
+olist_products_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_products_dataset.csv")
+
+olist_sellers_dataset <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_sellers_dataset.csv")
+
+product_category_name_translation <- read.csv("C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/product_category_name_translation.csv")
+
+
+
+```
+
+```{r}
+
+write_xlsx(
+  list(
+    customers = olist_customers_dataset,
+    geolocation = olist_geolocation_dataset,
+    order_items = olist_order_items_dataset,
+    payments = olist_order_payments_dataset,
+    reviews = olist_order_reviews_dataset,
+    orders = olist_orders_dataset,
+    products = olist_products_dataset,
+    sellers = olist_sellers_dataset,
+    translation = product_category_name_translation
+  ),
+  path = "C:/Users/tulio/Documents/portfolio/Brazilian ecommerce/archive/olist_datasets_completo.xlsx"
+)
+
+```
+
+# Estatística Descritiva Básica
+
+## Base de clientes e o total gasto
+
+```{r}
+
+clientes_gasto <- olist_order_items_dataset %>%
+  left_join(olist_orders_dataset, by = "order_id") %>%
+  left_join(olist_customers_dataset, by = "customer_id") %>%
+  group_by(customer_unique_id) %>%
+  summarise(total_gasto = sum(price, na.rm = TRUE))
+
+mean(clientes_gasto$total_gasto, na.rm = TRUE)
+median(clientes_gasto$total_gasto, na.rm = TRUE)
+Mode(clientes_gasto$total_gasto)  # do pacote DescTools
+
+## A maior parte dos clientes gastam menos que a média (distriuição assimétrica à direita).
+
+```
+
+## Medidas de dispersão com produtos vendidos
+
+```{r}
+
+precos <- olist_order_items_dataset$price
+
+sd(precos, na.rm = TRUE)
+var(precos, na.rm = TRUE)
+range(precos, na.rm = TRUE)
+IQR(precos, na.rm = TRUE)
+
+
+## Ocorre uma alta dispersão entre os produtos, isto é, variação no preço, sendo a maior parte dos produtos mais baratos, porém, tendo produtos muito caros. 
+```
+
+## Medidas de forma: distribuição dos preços
+
+```{r}
+
+skewness(precos, na.rm = TRUE)
+kurtosis(precos, na.rm = TRUE)
+
+# A maior parte dos preços está concnetrada em valores baixos, ainda assim, há produtos muito caros
+# existem muitos outliers, produtos com preço muito elevado em comparação a média. 
+```
+
+## Estatística de Frequência por tipo de pagamento
+
+```{r}
+
+table(olist_order_payments_dataset$payment_type)
+prop.table(table(olist_order_payments_dataset$payment_type))
+
+# cartao de credito domina
+
+```
+
+## Valor médio por categoria do produto
+
+```{r}
+
+olist_order_items_dataset %>%
+  left_join(olist_products_dataset, by = "product_id") %>%
+  group_by(product_category_name) %>%
+  summarise(media_valor = mean(price, na.rm = TRUE),
+            mediana = median(price, na.rm = TRUE),
+            qtd = n()) %>%
+  arrange(desc(qtd))
+
+## Categoria com preço mais baixo é a que mais vende. 
+```
+
+## Resumo dos dados
+
+```{r}
+
+summary(olist_order_items_dataset$price)
+summary(olist_orders_dataset$order_approved_at)
+summary(olist_order_payments_dataset$payment_value)
+summary(olist_order_reviews_dataset$review_score)
+
+
+```
+
+# Visualização dos dados Descritivos
+
+## Histograma de preços
+
+```{r}
+
+df <- olist_order_items_dataset %>%
+  filter(!is.na(price), price > 0)
+
+ggplot(df, aes(x = price)) +
+  geom_histogram(binwidth = 10, fill = "#A6CEE3", color = "white") +  
+  labs(title = "Distribuição dos preços", x = "Preço", y = "Frequência") +
+  coord_cartesian(xlim = c(0, 500)) +  # Limita o eixo X até 500
+  theme_classic() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+
+
+
+```
+
+## Boxplot 10 categorias
+
+```{r}
+
+top10 <- olist_products_dataset %>%
+  count(product_category_name, sort = TRUE) %>%
+  slice_head(n = 10)
+
+olist_order_items_dataset %>%
+  left_join(olist_products_dataset, by = "product_id") %>%
+  filter(product_category_name %in% top10$product_category_name) %>%
+  ggplot(aes(x = reorder(product_category_name, price), y = price)) +
+  geom_boxplot(fill = "#A6CEE3", color = "black") +  # azul pastel + contorno preto
+  coord_flip() +
+  labs(
+    title = "Boxplot de preços por categoria (Top 10)",
+    x = "Categoria",
+    y = "Preço"
+  ) +
+  theme_classic() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+
+```
+
+## Curva de Densidade dos preços
+
+```{r}
+
+ggplot(olist_order_items_dataset, aes(x = price)) +
+  geom_density(fill = "#4682B4", alpha = 0.6) +  
+  labs(
+    title = "Densidade dos preços dos produtos",
+    x = "Preço",
+    y = "Densidade"
+  ) +
+  theme_classic() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+## Gráfico de barras para tipo de pagamento
+
+```{r}
+
+ggplot(olist_order_payments_dataset, aes(x = payment_type)) +
+  geom_bar(fill = "#1f78b4") +  # azul mais forte
+  labs(
+    title = "Frequência dos tipos de pagamento",
+    x = "Tipo de Pagamento",
+    y = "Contagem"
+  ) +
+  theme_classic() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+```
+
+# 
+
+## Geolocation
+
+```{r}
+
+
+clientes_geo <- olist_geolocation_dataset %>%
+  filter(!is.na(geolocation_lat), !is.na(geolocation_lng))
+
+
+```
+
+```{r}
+
+clientes_geo %>%
+  slice_sample(n = 1000) %>%
+  leaflet() %>%
+  addTiles() %>%
+  addCircleMarkers(lng = ~geolocation_lng, lat = ~geolocation_lat, radius = 2,
+                   color = "blue", opacity = 0.6, label = ~geolocation_zip_code_prefix)
+
+
+
+
+```
+
+## Cluster
+
+```{r}
+
+# clientes_gasto unico
+
+clientes_gasto <- olist_order_payments_dataset %>%
+  inner_join(olist_orders_dataset, by = "order_id") %>%
+  inner_join(olist_customers_dataset, by = "customer_id") %>%
+  group_by(customer_unique_id) %>%
+  summarise(total_gasto = sum(payment_value, na.rm = TRUE), .groups = "drop")
+
+# clientes_compras único
+
+clientes_compras <- olist_orders_dataset %>%
+  inner_join(olist_customers_dataset, by = "customer_id") %>%
+  group_by(customer_unique_id) %>%
+  summarise(qtd_compras = n(), .groups = "drop")
+
+# juntar sem warnings
+
+clientes_cluster <- clientes_gasto %>%
+  left_join(clientes_compras, by = "customer_unique_id") %>%
+  select(qtd_compras, total_gasto) %>%
+  na.omit() %>%
+  scale()
+
+# clustering com k-means 
+
+set.seed(123)
+kmeans_result <- kmeans(clientes_cluster, centers = 3)
+
+plot(clientes_cluster, col = kmeans_result$cluster, pch = 20)
+
+
+# visualizar o perfil dos cluters 
+
+kmeans_result$centers
+
+
+
+
+```
+
+```{r}
+
+
+clientes_cluster_df <- as.data.frame(clientes_cluster)
+clientes_cluster_df$cluster <- kmeans_result$cluster
+
+
+table(clientes_cluster_df$cluster)
+
+
+
+clientes_cluster_df %>%
+  as_tibble() %>%
+  mutate(cluster = as.factor(cluster)) %>%
+  ggplot(aes(x = qtd_compras, y = total_gasto, color = cluster)) +
+  geom_point(alpha = 0.6, size = 2) +
+  labs(title = "Segmentação de Clientes (K-Means)",
+       x = "Frequência de Compras (padronizada)",
+       y = "Total Gasto (padronizado)",
+       color = "Cluster") +
+  theme_minimal()
+
+```
+
+## modelo preditivo com radomForest
+
+```{r}
+
+
+
+order_items_unico <- olist_order_items_dataset %>%
+  distinct(order_id, .keep_all = TRUE)
+
+reviews_unicos <- olist_order_reviews_dataset %>%
+  distinct(order_id, .keep_all = TRUE)
+
+dados_modelo <- reviews_unicos %>%
+  inner_join(olist_orders_dataset, by = "order_id") %>%
+  inner_join(order_items_unico, by = "order_id") %>%
+  mutate(
+    order_purchase_timestamp = ymd_hms(order_purchase_timestamp),
+    order_delivered_customer_date = ymd_hms(order_delivered_customer_date),
+    delivery_time = as.numeric(difftime(order_delivered_customer_date, order_purchase_timestamp, units = "days")),
+    review_negativa = ifelse(review_score <= 2, 1, 0)
+  ) %>%
+  select(review_negativa, delivery_time, freight_value, price) %>%
+  na.omit()
+ 
+
+set.seed(123)
+
+dados_modelo$review_negativa <- as.factor(dados_modelo$review_negativa)
+
+modelo_class <- randomForest(
+  review_negativa ~ delivery_time + freight_value + price,
+  data = dados_modelo,
+  ntree = 100,
+  importance = TRUE
+)
+
+print(modelo_class)
+importance(modelo_class, type = 2)  
+
+```
+
+```{r}
+
+# Previsões no próprio conjunto (para um teste rápido)
+pred <- predict(modelo_class, dados_modelo)
+
+# Matriz de confusão
+table(Predito = pred, Real = dados_modelo$review_negativa)
+
+# Calculando acurácia simples
+mean(pred == dados_modelo$review_negativa)
+
+```
+
+```{r}
+
+
+
+library(caret)
+set.seed(123)  # para reproducibilidade
+
+
+train_index <- createDataPartition(dados_modelo$review_negativa, p = 0.7, list = FALSE)
+dados_train <- dados_modelo[train_index, ]
+dados_test <- dados_modelo[-train_index, ]
+
+
+library(randomForest)
+modelo_class <- randomForest(
+  review_negativa ~ delivery_time + freight_value + price,
+  data = dados_train,
+  ntree = 100,
+  importance = TRUE
+)
+
+
+pred_test <- predict(modelo_class, dados_test)
+
+
+conf_matrix <- confusionMatrix(pred_test, dados_test$review_negativa)
+print(conf_matrix)
+
+
+
+importance(modelo_class, type = 2)
+
+
+
+# O modelo é bom para identificar avaliações positivas ou neutras (classe 0).
+
+# Tem dificuldade para detectar avaliações negativas (classe 1) — baixa especificidade.
+
+# Isso pode ser causado por classe desbalanceada (muito mais exemplos da classe 0 do que da 1).
+
+```
