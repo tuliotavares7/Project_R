@@ -79,6 +79,9 @@ sd(precos, na.rm = TRUE)
 var(precos, na.rm = TRUE)
 range(precos, na.rm = TRUE)
 IQR(precos, na.rm = TRUE)
+
+skewness(precos, na.rm = TRUE)
+kurtosis(precos, na.rm = TRUE)
 ```
 
 Também foi observado que o meio de pagamento mais utilizado foi o cartão de crédito, o que reforça o perfil digital dos consumidores.
@@ -245,18 +248,20 @@ print(modelo_class)
 importance(modelo_class, type = 2)
 ```
 
-Este projeto demonstra a aplicabilidade de técnicas de análise de dados e machine learning no e-commerce, com foco em melhorar a experiência do cliente e apoiar decisões estratégicas como retenção de consumidores, logística e precificação.
-Este projeto demonstra minha capacidade de aplicar técnicas de ciência de dados de ponta a ponta: desde o tratamento e análise exploratória até a modelagem preditiva, sempre com foco em resolver problemas reais de negócio. A partir de dados do e-commerce Olist, consegui gerar insights relevantes sobre comportamento do consumidor, segmentar perfis de clientes e prever avaliações negativas com base em fatores logísticos e comerciais.
 O uso de algoritmos como K-means e Random Forest mostrou-se eficaz para apoiar estratégias de marketing, retenção de clientes e melhoria na experiência do usuário. O destaque do tempo de entrega como principal fator de insatisfação, por exemplo, oferece um caminho direto para ações logísticas mais assertivas.
+
 Essa abordagem evidencia não apenas domínio técnico em R e aprendizado atual em machine learning, mas também uma visão orientada a negócios, essencial para transformar dados em valor estratégico.
-Limitações da análise
+
+#### Limitações da análise
+
 Apesar dos resultados positivos, este estudo apresenta algumas limitações importantes. Primeiramente, o modelo preditivo sofre com o desbalanceamento das classes, já que avaliações negativas representam uma parcela pequena do total. Isso afeta diretamente a sensibilidade do modelo para detectar clientes insatisfeitos. Além disso, variáveis potencialmente relevantes para a experiência do consumidor, como tipo de produto, desempenho do vendedor, ou atendimento ao cliente, não foram consideradas nesta versão da análise. Outra limitação é que os dados refletem apenas comportamentos passados e não capturam mudanças recentes no mercado ou preferências do consumidor. Por fim, os modelos foram avaliados apenas em dados históricos do próprio conjunto, sem validação externa ou acompanhamento temporal, o que pode limitar sua generalização.
-Conclusão
+
+#### Conclusão
+
 A partir de dados do e-commerce Olist, consegui gerar insights relevantes sobre comportamento do consumidor, segmentar perfis de clientes e prever avaliações negativas com base em fatores logísticos e comerciais.
 O uso de algoritmos como K-means e Random Forest mostrou-se eficaz para apoiar estratégias de marketing, retenção de clientes e melhoria na experiência do usuário. O destaque do tempo de entrega como principal fator de insatisfação, por exemplo, oferece um caminho direto para ações logísticas mais assertivas.
 Essa abordagem evidencia não apenas domínio técnico em R e machine learning, mas também uma visão orientada a negócios, essencial para transformar dados em valor estratégico.
 Agradeço por acompanhar este projeto e espero que ele tenha demonstrado meu raciocínio analítico, assim como minha capacidade de aplicar R na solução de problemas reais de negócio.
 Obrigado!
 
-skewness(precos, na.rm = TRUE)
-kurtosis(precos, na.rm = TRUE)
+
