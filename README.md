@@ -391,13 +391,12 @@ Por fim, utilizei uma análise de variância (ANOVA) para verificar se o valor d
 ```
 anova_result <- aov(order_amount ~ driver_type * driver_modal, data = dados_completos)
 summary(anova_result)
+
+TukeyHSD(anova_result)
 ```
 
 Uma análise post-hoc com o teste de Tukey confirmou que há diferenças estatísticas relevantes entre os grupos, sugerindo que, por exemplo, entregadores autônomos em motos podem operar em nichos diferentes dos entregadores contratados em bicicletas.
 
-```
-TukeyHSD(anova_result)
-```
 
 #### Limitações do Estudo
 
