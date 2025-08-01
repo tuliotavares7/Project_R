@@ -1,0 +1,382 @@
+---
+title: "delivery"
+format: pdf
+editor: visual
+---
+
+## 
+
+## pacotes
+
+```{r}
+library(writexl)
+library(DescTools)
+library(e1071)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(leaflet)
+library(readr)
+```
+
+## arquivos
+
+```{r}
+caminho <- "C:/Users/tulio/Documents/portfolio/delivery_center/archive"
+
+channels   <- read_csv(file.path(caminho, "channels.csv"))
+deliveries <- read_csv(file.path(caminho, "deliveries.csv"))
+drivers    <- read_csv(file.path(caminho, "drivers.csv"))
+hubs       <- read_csv(file.path(caminho, "hubs.csv"))
+orders     <- read_csv(file.path(caminho, "orders.csv"))
+payments   <- read_csv(file.path(caminho, "payments.csv"))
+stores     <- read_csv(file.path(caminho, "stores.csv"))
+```
+
+## entregas
+
+```{r}
+
+entregas_stats <- deliveries %>%
+  left_join(drivers, by = "driver_id") %>%
+  group_by(driver_type, driver_modal) %>%
+  summarise(
+    total_entregas = n(),
+    entregas_sucesso = sum(delivery_status == "DELIVERED", na.rm = TRUE),
+    taxa_sucesso_percentual = round(100 * entregas_sucesso / total_entregas, 2),
+    distancia_media_metros = round(mean(delivery_distance_meters, na.rm = TRUE), 2),
+    .groups = "drop"
+  )
+
+print(entregas_stats)
+
+```
+
+```{r}
+
+deliveries %>%
+  filter(is.na(driver_id)) %>%
+  summarise(qtd = n())
+
+entregas_stats <- deliveries %>%
+  filter(!is.na(driver_id)) %>%
+  left_join(drivers, by = "driver_id") %>%
+  group_by(driver_type, driver_modal) %>%
+  summarise(
+    total_entregas = n(),
+    entregas_sucesso = sum(delivery_status == "DELIVERED", na.rm = TRUE),
+    taxa_sucesso_percentual = round(100 * entregas_sucesso / total_entregas, 2),
+    distancia_media_metros = round(mean(delivery_distance_meters, na.rm = TRUE), 2),
+    .groups = "drop"
+  )
+
+```
+
+## valor medio dos pedidos por modal e distancia
+
+```{r}
+
+valor_medio_pedidos <- deliveries %>%
+    filter(!is.na(driver_id)) %>%                   
+    left_join(drivers, by = "driver_id") %>%       
+    left_join(orders, by = c("delivery_order_id" = "order_id")) %>%  
+    mutate(
+        faixa_distancia = case_when(
+            delivery_distance_meters <= 1000 ~ "0-1 km",
+            delivery_distance_meters <= 3000 ~ "1-3 km",
+            delivery_distance_meters <= 5000 ~ "3-5 km",
+            TRUE ~ ">5 km"
+        )
+    ) %>%
+    group_by(driver_modal, faixa_distancia) %>%
+    summarise(
+        valor_medio = mean(order_amount, na.rm = TRUE),
+        qtd_entregas = n(),
+        .groups = "drop"
+    ) %>%
+    arrange(driver_modal, faixa_distancia)
+
+
+```
+
+### investigando os pedidos 3-5km mais entregues por biker
+
+```{r}
+
+
+
+entregas_por_faixa <- deliveries %>%
+  filter(!is.na(driver_id)) %>%
+  left_join(drivers, by = "driver_id") %>%
+  left_join(orders, by = c("delivery_order_id" = "order_id")) %>%
+  mutate(
+    faixa_distancia = case_when(
+      delivery_distance_meters <= 1000 ~ "0-1 km",
+      delivery_distance_meters <= 3000 ~ "1-3 km",
+      delivery_distance_meters <= 5000 ~ "3-5 km",
+      TRUE ~ ">5 km"
+    )
+  ) %>%
+  group_by(driver_modal, faixa_distancia) %>%
+  summarise(
+    qtd_entregas = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(driver_modal, faixa_distancia)
+
+print(entregas_por_faixa)
+
+
+
+```
+
+### boxplot pra confirmar os numeros observados anteriormente
+
+```{r}
+
+library(ggplot2)
+
+dados_boxplot <- deliveries %>%
+  filter(!is.na(driver_id)) %>%
+  left_join(drivers, by = "driver_id") %>%
+  left_join(orders, by = c("delivery_order_id" = "order_id")) %>%
+  mutate(
+    faixa_distancia = case_when(
+      delivery_distance_meters <= 1000 ~ "0-1 km",
+      delivery_distance_meters <= 3000 ~ "1-3 km",
+      delivery_distance_meters <= 5000 ~ "3-5 km",
+      TRUE ~ ">5 km"
+    )
+  ) %>%
+  filter(faixa_distancia == "3-5 km" & driver_modal %in% c("BIKER", "MOTOBOY")) %>%
+  select(driver_modal, order_amount)
+
+ggplot(dados_boxplot, aes(x = driver_modal, y = order_amount, fill = driver_modal)) +
+  geom_boxplot(alpha = 0.7) +
+  scale_y_continuous(labels = scales::dollar_format(prefix = "R$")) +
+  labs(
+    title = "Distribuição dos Valores dos Pedidos na Faixa 3-5 km",
+    x = "Modal do Entregador",
+    y = "Valor do Pedido",
+    fill = "Modal"
+  ) +
+  theme_minimal()
+
+# Motoboys têm MUITO mais entregas em distâncias maiores e, portanto, uma amostra maior e mais variada, com isso, é normal ter mais outliers
+```
+
+## volume de pedidos e desconto médio por estado do hub
+
+```{r}
+
+desconto_estado <- orders %>%
+    filter(order_status == "FINISHED") %>%
+    left_join(stores, by = "store_id") %>%
+    left_join(hubs, by = "hub_id") %>%
+    left_join(payments %>% filter(payment_status == "paid"), by = c("order_id" = "payment_order_id")) %>%
+    group_by(state = hub_state) %>%
+    summarise(
+        total_pedidos = n(),
+        receita_bruta = round(sum(order_amount, na.rm = TRUE), 2),
+        receita_liquida = round(sum(payment_amount, na.rm = TRUE), 2),
+        desconto_medio_percentual = round(mean(
+            ifelse(payment_amount < order_amount,
+                   100 * (order_amount - payment_amount) / order_amount, 0), na.rm = TRUE), 2),
+        .groups = "drop"
+    )
+
+```
+
+### total de pedidos por estado
+
+```{r}
+
+ggplot(desconto_estado, aes(x = reorder(state, -total_pedidos), y = total_pedidos)) +
+  geom_col(fill = "#1f78b4") +
+  labs(
+    title = "Total de Pedidos por Estado",
+    x = "Estado",
+    y = "Número de Pedidos"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+
+```
+
+## pedidos por estado
+
+```{r}
+
+
+library(dplyr)
+
+# Agregar pagamentos por pedido, somando os valores pagos
+pagamentos_por_pedido <- payments %>%
+  filter(payment_status == "PAID") %>%
+  group_by(payment_order_id) %>%
+  summarise(payment_value = sum(payment_amount, na.rm = TRUE), .groups = "drop")
+
+# Criar o resumo por estado com as métricas solicitadas
+desconto_estado <- orders %>%
+  filter(order_status == "FINISHED") %>%
+  left_join(stores, by = "store_id") %>%
+  left_join(hubs, by = "hub_id") %>%
+  left_join(pagamentos_por_pedido, by = c("order_id" = "payment_order_id")) %>%
+  group_by(state = hub_state) %>%
+  summarise(
+    total_pedidos = n(),
+    receita_bruta = round(sum(order_amount, na.rm = TRUE), 2),
+    receita_liquida = round(sum(payment_value, na.rm = TRUE), 2),
+    desconto_medio_percentual = round(mean(
+      ifelse(payment_value < order_amount,
+             100 * (order_amount - payment_value) / order_amount,
+             0), na.rm = TRUE), 2),
+    .groups = "drop"
+  )
+
+# Visualizar o resultado
+print(desconto_estado)
+```
+
+```{r}
+
+ggplot(desconto_estado, aes(x = reorder(state, -desconto_medio_percentual), y = desconto_medio_percentual, fill = desconto_medio_percentual)) +
+  geom_col() +
+  scale_fill_gradient(low = "lightblue", high = "darkblue") +
+  labs(
+    title = "Desconto Médio Percentual por Estado",
+    x = "Estado",
+    y = "Desconto Médio (%)"
+  ) +
+  theme_minimal() +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+
+```
+
+```{r}
+
+summary_stats <- desconto_estado %>%
+  summarise(
+    média = mean(desconto_medio_percentual, na.rm = TRUE),
+    mediana = median(desconto_medio_percentual, na.rm = TRUE),
+    desvio_padrão = sd(desconto_medio_percentual, na.rm = TRUE),
+    mínimo = min(desconto_medio_percentual, na.rm = TRUE),
+    máximo = max(desconto_medio_percentual, na.rm = TRUE),
+    n = n()
+  )
+
+print(summary_stats)
+
+```
+
+### boxplot para visualizar a distriuição dos descontos
+
+```{r}
+
+ggplot(desconto_estado, aes(y = desconto_medio_percentual, x = "")) +
+  geom_boxplot(fill = "lightblue") +
+  labs(
+    title = "Distribuição do Desconto Médio Percentual",
+    y = "Desconto Médio (%)",
+    x = ""
+  ) +
+  theme_minimal()
+
+```
+
+### Histograma para ver a frequência dos descontos
+
+```{r}
+
+ggplot(desconto_estado, aes(x = desconto_medio_percentual)) +
+  geom_histogram(binwidth = 0.2, fill = "#1f78b4", color = "black") +
+  labs(
+    title = "Histograma do Desconto Médio Percentual",
+    x = "Desconto Médio (%)",
+    y = "Frequência"
+  ) +
+  theme_minimal() +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+
+
+```
+
+### tabela resumida
+
+```{r}
+
+estatisticas_completas <- desconto_estado %>%
+  summarise(
+    média = mean(desconto_medio_percentual, na.rm = TRUE),
+    mediana = median(desconto_medio_percentual, na.rm = TRUE),
+    desvio_padrão = sd(desconto_medio_percentual, na.rm = TRUE),
+    coef_var = sd(desconto_medio_percentual, na.rm = TRUE) / mean(desconto_medio_percentual, na.rm = TRUE),
+    min = min(desconto_medio_percentual, na.rm = TRUE),
+    q1 = quantile(desconto_medio_percentual, 0.25, na.rm = TRUE),
+    q3 = quantile(desconto_medio_percentual, 0.75, na.rm = TRUE),
+    max = max(desconto_medio_percentual, na.rm = TRUE),
+    n = n()
+  )
+
+print(estatisticas_completas)
+
+```
+
+## ANOVA: pedido e modal
+
+```{r}
+
+dados_completos <- deliveries %>%
+  left_join(drivers, by = "driver_id") %>%
+  left_join(orders, by = c("delivery_order_id" = "order_id")) %>%
+  select(order_amount = order_amount, driver_type, driver_modal) %>%
+  filter(!is.na(order_amount), !is.na(driver_type), !is.na(driver_modal))
+
+```
+
+```{r}
+
+anova_result <- aov(order_amount ~ driver_type * driver_modal, data = dados_completos)
+summary(anova_result)
+
+```
+
+### identificar quais grupos diferem entre si
+
+```{r}
+
+# Análise post-hoc
+
+TukeyHSD(anova_result)
+
+# Tanto o tipo do entregador quanto o modal de entrega influenciam significativamente o valor médio dos pedidos.
+
+```
+
+### Visualização
+
+```{r}
+
+library(ggplot2)
+
+ggplot(dados_completos, aes(x = driver_modal, y = order_amount, fill = driver_type)) +
+  geom_boxplot() +
+  labs(title = "Distribuição do valor dos pedidos por tipo e modal de entregador",
+       x = "Modal do entregador",
+       y = "Valor do pedido") +
+  theme_minimal()
+
+```
