@@ -16,6 +16,7 @@ olist_sellers: contém informações sobre os vendedores que atenderam aos pedid
 FOTO 
 
 ### Analisando os dados
+
 Neste projeto, explorei o conjunto de dados do e-commerce Olist com o objetivo de realizar análises descritivas, segmentação de clientes e modelagem preditiva com foco na experiência do consumidor.
 Inicialmente, carreguei os principais pacotes do R para manipulação, visualização e modelagem, como dplyr, ggplot2, randomForest, tidyverse e outros. 
 
