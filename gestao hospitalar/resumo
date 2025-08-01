@@ -1,0 +1,346 @@
+## Gestão Hospitalar
+
+### Introdução 
+
+Neste projeto, utilizo o banco de dados Hospital Management Dataset, que contém cinco tabelas principais, utilizadas para responder às perguntas propostas. Abaixo, segue a descrição de cada uma:
+
+- atients.csv - Dados demográficos, contatos, informações de registro e seguro dos pacientes;
+- doctors.csv - Perfis dos médicos, especializações, experiência e contatos;
+- appointments.csv - Datas, horários, motivos das visitas e status dos agendamentos;
+- treatments.csv - Tipos de tratamento, descrições, datas e custos associados;
+- billing.csv - Valores cobrados, formas de pagamento e status das transações.
+
+### Analisando os dados
+
+Carregando os pacotes necessários
+
+Antes de iniciar a análise, carregamos os principais pacotes que darão suporte às etapas de leitura, transformação, visualização e modelagem:
+
+```
+library(writexl)
+library(DescTools)
+library(e1071)
+library(dplyr)
+library(ggplot2)
+library(scales)
+library(leaflet)
+library(readr)
+library(lubridate)
+# Importanto os dados
+# Os dados foram importados diretamente de um diretório local contendo os arquivos em CSV:
+caminho <- "C:/Users/tulio/Documents/portfolio/gestao_hospitalar/archive (1)"
+
+appointments <- read.csv(file.path(caminho, "appointments.csv"))
+billing <- read.csv(file.path(caminho, "billing.csv"))
+doctors <- read.csv(file.path(caminho, "doctors.csv"))
+patients <- read.csv(file.path(caminho, "patients.csv"))
+treatments <- read.csv(file.path(caminho, "treatments.csv"))
+```
+
+#### Verificação Estrutural dos Dados
+
+Utilizamos str() e head() para inspecionar os primeiros registros e entender a estrutura de cada tabela. Essa etapa é essencial para planejar os tipos de análises possíveis e identificar colunas relevantes.
+
+```
+str(appointments)
+head(appointments)
+
+str(billing)
+head(billing)
+
+str(doctors)
+head(doctors)
+
+str(patients)
+head(patients)
+
+str(treatments)
+head(treatments)
+```
+
+#### Conversão de Datas
+
+As colunas relacionadas a datas e horários foram convertidas para os formatos adequados:
+
+```
+# Appointments
+appointments$appointment_date <- as.Date(appointments$appointment_date)
+appointments$appointment_time <- format(strptime(appointments$appointment_time, "%H:%M:%S"), "%H:%M:%S")
+
+# Billing
+billing$bill_date <- as.Date(billing$bill_date)
+
+# Patients
+patients$date_of_birth <- as.Date(patients$date_of_birth)
+patients$registration_date <- as.Date(patients$registration_date)
+
+# Treatments
+treatments$treatment_date <- as.Date(treatments$treatment_date)
+Estatísticas Descritivas de Faturamento
+Calculamos métricas estatísticas básicas sobre os valores faturados:
+
+billing_summary <- billing %>%
+  summarise(
+    total_faturado = sum(amount, na.rm = TRUE),
+    media_faturamento = mean(amount, na.rm = TRUE),
+    mediana_faturamento = median(amount, na.rm = TRUE),
+    desvio_padrao = sd(amount, na.rm = TRUE),
+    minimo = min(amount, na.rm = TRUE),
+    maximo = max(amount, na.rm = TRUE),
+    n = n()
+  )
+print(billing_summary)
+```
+
+Essas estatísticas oferecem um panorama geral do faturamento hospitalar, permitindo visualizar a média de cobrança por tratamento, além de desvios que podem indicar outliers. Nessa imagem, o faturamento apresenta alta dispersão, o que sugere a necessidade de analisar os fatores que influenciam o valor cobrado, como tipo de tratamento ou método de pagamento. Além disso, a diferença entre média e mediana indica que existem valores mais baixos puxando a média para baixo, o que pode influenciar a precificação ou as estratégias comerciais da clínica.
+
+#### Faturamento por Tipo de Tratamento
+
+Relacionamos os dados de faturamento com os tipos de tratamento para entender quais serviços geram maior receita:
+
+```
+billing_treatments <- billing %>%
+  left_join(treatments, by = "treatment_id") %>%
+  group_by(treatment_type) %>%
+  summarise(
+    media_valor = mean(amount, na.rm = TRUE),
+    total_valor = sum(amount, na.rm = TRUE),
+    n = n(),
+    .groups = "drop"
+  ) %>%
+  arrange(desc(total_valor))
+print(billing_treatments)
+```
+
+Isso revela, por exemplo, quais tratamentos são mais lucrativos e quais têm maior volume. A análise dos tratamentos revela que o faturamento total está mais associado ao volume de atendimentos do que ao valor médio por consulta. A quimioterapia, embora não tenha o maior preço unitário, gerou a maior receita total devido ao maior número de sessões realizadas. Já a ressonância magnética apresentou o maior valor médio por consulta, mas o menor volume reduziu seu impacto no total faturado.
+
+Os demais tratamentos, como ECG e raio-X, destacam-se pelos menores valores médios e também menor contribuição no faturamento total, reforçando a importância de entender tanto o preço quanto a frequência de utilização dos serviços para decisões estratégicas.
+
+#### Consultas por Status
+
+Aqui analisamos a distribuição das consultas segundo o status ("Completed", "Cancelled", "No-show"):
+
+```
+appointments_status <- appointments %>%
+  count(status)
+print(appointments_status)
+```
+
+Esse tipo de informação é crucial para medir absenteísmo e problemas operacionais.
+
+#### Consultas por Especialidade Médica
+
+Utilizamos left_join() para cruzar dados de consultas com a especialidade dos médicos:
+
+```
+appointments_by_specialty <- appointments %>%
+  left_join(doctors, by = "doctor_id") %>%
+  count(specialization, sort = TRUE)
+print(appointments_by_specialty)
+```
+
+Com isso, conseguimos ver quais especialidades concentram maior número de atendimentos.
+
+A visualização facilita a identificação de tratamentos com maior ticket médio:
+
+```
+ggplot(billing_treatments, aes(x = reorder(treatment_type, -media_valor), y = media_valor)) +
+  geom_col(fill = "#1f78b4", width = 0.6) +  # barra um pouco mais fina
+  labs(
+    title = "Faturamento Médio por Tipo de Tratamento",
+    x = "Tipo de Tratamento",
+    y = "Valor Médio (R$)"
+  ) +
+  theme_minimal(base_size = 12) +  # tamanho menor do texto geral, incluindo título
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank(),
+    plot.title = element_text(size = 14)  # título um pouco menor que o base_size padrão
+  ) +
+  coord_flip()
+```
+
+#### Evolução de Consultas por Mês
+
+```
+ggplot(appointments_monthly, aes(x = mes, y = n)) +
+  geom_line(color = "steelblue", size = 1.2) +
+  geom_point(color = "steelblue") +
+  labs(
+    title = "Número de Consultas por Mês",
+    x = "Mês",
+    y = "Quantidade de Consultas"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+O gráfico mostra como o volume de consultas evoluiu ao longo do tempo.
+
+#### Faturamento Total e Médio por Mês
+
+Analisamos o valor total e médio faturado a cada mês:
+
+```
+billing_monthly <- billing %>%
+  mutate(mes = floor_date(bill_date, "month")) %>%
+  group_by(mes) %>%
+  summarise(total = sum(amount, na.rm = TRUE), .groups = "drop")
+
+ggplot(billing_monthly, aes(x = mes, y = total)) +
+  geom_line(color = "#1f78b4", size = 1.2) +
+  geom_point(color = "#1f78b4") +
+  labs(
+    title = "Faturamento Total por Mês",
+    x = "Mês",
+    y = "Valor Faturado (R$)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+billing_avg_monthly <- billing %>%
+  mutate(mes = floor_date(bill_date, "month")) %>%
+  group_by(mes) %>%
+  summarise(media = mean(amount, na.rm = TRUE), .groups = "drop")
+
+ggplot(billing_avg_monthly, aes(x = mes, y = media)) +
+  geom_line(color = "#1f78b4", size = 1.2) +
+  geom_point(color = "#1f78b4") +
+  labs(
+    title = "Faturamento Médio por Mês",
+    x = "Mês",
+    y = "Valor Médio (R$)"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+Isso ajuda a avaliar sazonalidade e a saúde financeira do hospital ao longo do tempo.
+
+#### Cancelamentos e Faltas
+
+```
+appointments_temporal_status <- appointments %>%
+  mutate(mes = floor_date(appointment_date, "month")) %>%
+  filter(status %in% c("Cancelled", "No-show")) %>%
+  count(mes, status)
+
+ggplot(appointments_temporal_status, aes(x = mes, y = n, color = status)) +
+  geom_line(size = 1.2) +
+  geom_point() +
+  labs(
+    title = "Evolução de Cancelamentos e Faltas",
+    x = "Mês",
+    y = "Quantidade de Ocorrências",
+    color = "Status"
+  ) +
+  theme_minimal(base_size = 14) +
+  theme(
+    panel.grid.major = element_blank(),
+    panel.grid.minor = element_blank()
+  )
+```
+
+A visualização mostra se cancelamentos e ausências estão aumentando, ajudando na tomada de decisões para mitigar essas ocorrências.
+
+#### Regressão Linear
+
+Analisamos se o tipo de tratamento e o método de pagamento influenciam no valor cobrado:
+
+```
+# quais variaveis influenciam o valor faturado 
+modelo <- lm(amount ~ treatment_type + payment_method, data = billing %>%
+               left_join(treatments, by = "treatment_id"))
+summary(modelo)
+```
+
+A regressão mostra quais variáveis têm impacto significativo no faturamento. A regressão linear indicou que o tipo de tratamento ressonância magnética (MRI) está associado a um aumento estatisticamente significativo no valor faturado, em comparação a outros tratamentos. No entanto, o modelo como um todo não é significativo, e as variáveis utilizadas explicam menos de 4% da variação nos valores cobrados. Isso sugere que outras variáveis clínicas ou operacionais não incluídas no banco de dados têm maior influência sobre o custo final. Além disso, a forma de pagamento não afeta o valor faturado, o que pode indicar uma política de cobrança padronizada no hospital.
+
+#### Análise de Variância (ANOVA)
+
+Verificamos se o valor faturado difere significativamente entre os tipos de tratamento:
+
+```
+# o valor faturado muda significativamente entre diferentes tipos de tratamento?
+anova_model <- aov(amount ~ treatment_type, data = billing %>%
+                     left_join(treatments, by = "treatment_id"))
+summary(anova_model)
+```
+
+Se o valor-p da ANOVA for menor que 0.05, concluímos que há diferenças significativas entre os grupos. Com base na ANOVA, não há diferença estatisticamente significativa no valor médio faturado entre os diferentes tipos de tratamento registrados nesse hospital. Isso pode indicar uma padronização nos custos praticados, ou que outras variáveis (como o tempo de tratamento, complexidade individual ou método de pagamento) têm influência maior sobre os valores cobrados.
+
+#### Clustering de Pacientes
+Usamos o algoritmo de k-means para agrupar pacientes com características semelhantes:
+```
+# agrupar pacientes com caracteristicas semelhantes como idade  
+
+# Pré-processamento: idade, total de consultas, total gasto
+pacientes_cluster <- billing %>%
+  left_join(patients, by = "patient_id") %>%
+  mutate(
+    idade = as.integer((Sys.Date() - as.Date(date_of_birth)) / 365.25)
+  ) %>%
+  group_by(patient_id, idade) %>%
+  summarise(
+    consultas = n(),
+    total_gasto = sum(amount, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  na.omit()
+
+# Clustering com k-means (3 grupos)
+set.seed(123)
+kmeans_result <- kmeans(pacientes_cluster[, c("idade", "consultas", "total_gasto")], centers = 3)
+
+pacientes_cluster$grupo <- as.factor(kmeans_result$cluster)
+
+# Visualizar
+ggplot(pacientes_cluster, aes(x = idade, y = total_gasto, color = grupo)) +
+  geom_point(size = 3) +
+  labs(title = "Clusters de Pacientes por Idade e Gasto Total") +
+  theme_minimal()
+```
+
+A visualização mostra diferentes perfis de pacientes, por exemplo, idosos com alto gasto ou jovens com poucas consultas.
+
+#### Tempo de Espera entre Cadastro e Primeira Consulta
+
+```
+# quanto tempo esperam entre o cadastro e a primeira consulta
+
+tempo_espera <- appointments %>%
+  left_join(patients, by = "patient_id") %>%
+  group_by(patient_id) %>%
+  summarise(
+    registro = min(as.Date(registration_date)),
+    primeira_consulta = min(appointment_date),
+    dias_espera = as.numeric(primeira_consulta - registro)
+  )
+
+summary(tempo_espera$dias_espera)
+```
+
+Com essa análise, é possível identificar gargalos no atendimento inicial ao paciente, algo crucial para medir eficiência e satisfação. Esse resultado levanta um sinal de alerta: a demora para o primeiro atendimento é alta, o que pode impactar diretamente na qualidade do cuidado oferecido. Além disso, a presença de valores negativos indica que há dados inconsistentes no sistema, que precisam ser verificados ou limpos para evitar interpretações incorretas.
+
+Esse tipo de análise é valioso para gestores hospitalares, pois permite identificar gargalos no processo de triagem e agendamento de consultas iniciais, além de orientar melhorias no fluxo de atendimento e na confiabilidade dos registros.
+
+#### CONCLUSÃO
+
+Ao explorar o Hospital Management Dataset com R, evidenciamos que o faturamento total é mais sensível ao volume de atendimentos do que ao preço unitário. A quimioterapia lidera a receita pelo número de sessões, enquanto a ressonância magnética (MRI) apresenta maior ticket médio sem dominar o faturamento por ter menor volume. Em paralelo, ECG e raio‑X contribuem menos por combinarem menor valor médio e menor demanda.
+
+Do ponto de vista estatístico, a ANOVA não detectou diferenças significativas entre os tipos de tratamento no valor médio faturado, sugerindo padronização de preços ou influência de fatores não observados. A regressão indicou efeito positivo do MRI no valor, mas o modelo global não foi significativo (R² baixo), reforçando que variáveis clínicas e operacionais ausentes (complexidade do caso, tempo de permanência, materiais, convênio específico, urgência) provavelmente explicam a maior parte da variação.
+
+Nas frentes operacionais, a análise temporal de cancelamentos e no‑shows e o tempo até a primeira consulta expuseram gargalos relevantes. A presença de tempos negativos entre cadastro e primeira consulta aponta inconsistências cadastrais que precisam ser corrigidas para evitar decisões enviesadas. O clustering de pacientes mostrou perfis distintos (ex.: idosos com alto gasto vs. jovens de baixa frequência), abrindo espaço para estratégias segmentadas de cuidado, agenda e comunicação.
+
+Agradeço por acompanhar este projeto e espero que ele tenha demonstrado meu raciocínio analítico, assim como minha capacidade de aplicar R na solução de problemas reais de negócio.
+Obrigado!
+
+
