@@ -575,6 +575,9 @@ billing_summary <- billing %>%
 print(billing_summary)
 ```
 
+<img width="703" height="155" alt="Image" src="https://github.com/user-attachments/assets/3556310a-c2fb-45e3-a25a-a2b82b8d0859" />
+
+
 Essas estatísticas oferecem um panorama geral do faturamento hospitalar, permitindo visualizar a média de cobrança por tratamento, além de desvios que podem indicar outliers. Nessa imagem, o faturamento apresenta alta dispersão, o que sugere a necessidade de analisar os fatores que influenciam o valor cobrado, como tipo de tratamento ou método de pagamento. Além disso, a diferença entre média e mediana indica que existem valores mais baixos puxando a média para baixo, o que pode influenciar a precificação ou as estratégias comerciais da clínica.
 
 #### Faturamento por Tipo de Tratamento
@@ -595,6 +598,9 @@ billing_treatments <- billing %>%
 print(billing_treatments)
 ```
 
+<img width="698" height="233" alt="Image" src="https://github.com/user-attachments/assets/076dc931-11e0-40b5-89cd-28d1dc6beb58" />
+
+
 Isso revela, por exemplo, quais tratamentos são mais lucrativos e quais têm maior volume. A análise dos tratamentos revela que o faturamento total está mais associado ao volume de atendimentos do que ao valor médio por consulta. A quimioterapia, embora não tenha o maior preço unitário, gerou a maior receita total devido ao maior número de sessões realizadas. Já a ressonância magnética apresentou o maior valor médio por consulta, mas o menor volume reduziu seu impacto no total faturado.
 
 Os demais tratamentos, como ECG e raio-X, destacam-se pelos menores valores médios e também menor contribuição no faturamento total, reforçando a importância de entender tanto o preço quanto a frequência de utilização dos serviços para decisões estratégicas.
@@ -608,6 +614,8 @@ appointments_status <- appointments %>%
   count(status)
 print(appointments_status)
 ```
+<img width="702" height="210" alt="Image" src="https://github.com/user-attachments/assets/5f600940-7544-4041-9096-655f49ab37f5" />
+
 
 Esse tipo de informação é crucial para medir absenteísmo e problemas operacionais.
 
@@ -621,6 +629,9 @@ appointments_by_specialty <- appointments %>%
   count(specialization, sort = TRUE)
 print(appointments_by_specialty)
 ```
+
+<img width="708" height="193" alt="Image" src="https://github.com/user-attachments/assets/d911b113-bcda-4888-8342-5e7bae09361d" />
+
 
 Com isso, conseguimos ver quais especialidades concentram maior número de atendimentos.
 
