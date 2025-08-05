@@ -163,11 +163,13 @@ ggplot(olist_order_payments_dataset, aes(x = payment_type)) +
     panel.grid.minor = element_blank()
   )
 ```
-
+<div align="center">
 <img width="520" height="330" alt="Image" src="https://github.com/user-attachments/assets/2befa841-9fef-4509-b430-b39597b9df49" />
 <img width="520" height="297" alt="Image" src="https://github.com/user-attachments/assets/3032bcfb-18eb-4a63-8ac6-f88a76b1df4e" />
 <img width="519" height="330" alt="Image" src="https://github.com/user-attachments/assets/1bc6993f-8db2-417d-a36d-9de878c4515d" />
 <img width="521" height="329" alt="Image" src="https://github.com/user-attachments/assets/b40542ff-1170-422f-ae5e-c0f59b1155ca" />
+</div>
+
 
 
 Um mapa interativo com o pacote leaflet permitiu observar a distribuição geográfica dos clientes, com maior concentração nas regiões Sudeste e Sul.
@@ -183,8 +185,9 @@ clientes_geo %>%
   addCircleMarkers(lng = ~geolocation_lng, lat = ~geolocation_lat, radius = 2,
                    color = "blue", opacity = 0.6, label = ~geolocation_zip_code_prefix)
 ```
-
+<div align="center">
 <img width="1133" height="536" alt="Image" src="https://github.com/user-attachments/assets/c90d124e-1c62-40f0-bd59-225b52aff579" />
+</div>
 
 
 A segmentação de clientes foi feita por meio do algoritmo K-means. Para isso, calculei a frequência de compras e o total gasto por cliente. Após padronização das variáveis, determinei o número ideal de clusters com o método do cotovelo (elbow method), que sugeriu três agrupamentos. Os clusters revelaram perfis distintos: consumidores de baixo gasto e pouca frequência, consumidores intermediários, e consumidores frequentes e de alto valor.
@@ -224,8 +227,9 @@ plot(clientes_cluster, col = kmeans_result$cluster, pch = 20)
 
 kmeans_result$centers
 ```
-
+<div align="center">
 <img width="1135" height="592" alt="Image" src="https://github.com/user-attachments/assets/804e389b-2fb7-4849-a11e-33d7687f96cc" />
+</div>
 
 
 A última etapa consistiu na construção de modelos preditivos com machine learning. O objetivo foi prever a probabilidade de um cliente fazer uma avaliação negativa (nota 1 ou 2). Para isso, foram usadas as variáveis: tempo de entrega, valor do frete e preço do produto. A modelagem foi realizada com o algoritmo Random Forest. Após preparação dos dados e transformação da variável resposta em fator, dividi os dados em treino e teste (70/30). O modelo apresentou uma acurácia de aproximadamente 88% no conjunto de teste. A matriz de confusão revelou bom desempenho para prever avaliações positivas, porém com menor capacidade de detectar avaliações negativas, reflexo de um desbalanceamento nas classes. A análise de importância das variáveis mostrou que o tempo de entrega foi o fator mais relevante na predição de avaliações negativas, seguido pelo valor do frete e pelo preço.
@@ -263,7 +267,11 @@ modelo_class <- randomForest(
 print(modelo_class)
 importance(modelo_class, type = 2)
 ```
+
+<div align="center">
 <img width="1168" height="219" alt="Image" src="https://github.com/user-attachments/assets/11758521-216c-4a83-813f-e475f48268d3" />
+</div>
+
 
 O uso de algoritmos como K-means e Random Forest mostrou-se eficaz para apoiar estratégias de marketing, retenção de clientes e melhoria na experiência do usuário. O destaque do tempo de entrega como principal fator de insatisfação, por exemplo, oferece um caminho direto para ações logísticas mais assertivas.
 
@@ -298,8 +306,11 @@ Neste projeto, utilizo o banco de dados Delivery Center: Food & Goods orders in 
 
 Aqui está a figura disponibilizada pelo autor do diagrama de modelo de dados.
 
+<div align="center">
 <img width="1489" height="716" alt="Image" src="https://github.com/user-attachments/assets/a51ae40e-367c-4516-a945-db409e6d0c90" />
 Imagem 1: Explicação da tabela. Fonte: https://www.linkedin.com/in/cleibsonalmeida/
+</div>
+
 
 
 ### Analisando os dados
@@ -343,8 +354,10 @@ entregas_stats <- deliveries %>%
 
 print(entregas_stats)
 ```
-
+<div align="center">
 <img width="709" height="233" alt="Image" src="https://github.com/user-attachments/assets/89a7a45e-5af0-4b51-ba9c-3b64c0ae542b" />
+</div>
+
 
 
 Essa análise revelou que os motoboys são responsáveis pelo maior volume de entregas, com distâncias médias superiores às dos bikers. Já os ciclistas (modal "BIKER") tendem a operar em faixas de curta distância, com menor variabilidade nas entregas. Foi possível observar ainda que entregas sem identificação de entregador são relativamente raras, o que reforça a confiabilidade dos cruzamentos feitos a seguir.
@@ -371,8 +384,9 @@ entregas_por_faixa <- deliveries %>%
 
 print(entregas_por_faixa)
 ```
-
+<div align="center">
 <img width="750" height="288" alt="Image" src="https://github.com/user-attachments/assets/0684e680-f04c-4713-ac68-a5810963cf4a" />
+</div>
 
 
 Em uma segunda etapa, analisei o valor médio dos pedidos, cruzando os dados de entrega com os dados dos pedidos e criando faixas de distância (0–1 km, 1–3 km, 3–5 km e acima de 5 km). Essa segmentação mostrou que o valor dos pedidos cresce com a distância, especialmente quando o modal é motoboy. 
@@ -413,8 +427,9 @@ ggplot(desconto_estado, aes(x = reorder(state, -desconto_medio_percentual), y = 
     panel.grid.minor = element_blank()
   )
 ```
-
+<div align="center">
 <img width="542" height="353" alt="Image" src="https://github.com/user-attachments/assets/783bc7a8-f6fe-47d5-99c1-091f87fafc23" />
+</div>
 
 Em termos de descontos, alguns estados apresentaram valores médios superiores a 10%, o que pode indicar estratégias de precificação ou ambientes de maior competitividade.
 
@@ -435,15 +450,18 @@ ggplot(desconto_estado, aes(x = reorder(state, -desconto_medio_percentual), y = 
   )
 
 ```
-
+<div align="center">
 <img width="530" height="360" alt="Image" src="https://github.com/user-attachments/assets/4ae78d07-9a9f-4682-90e9-a5ba7fde592a" />
+</div>
 
 
 Além disso, calculei estatísticas descritivas como média, mediana, desvio padrão, coeficiente de variação e quartis dos descontos médios por estado. Esses indicadores forneceram uma visão mais aprofundada da variabilidade nos descontos, reforçando que há regiões com políticas comerciais bastante distintas.
 
 Por fim, utilizei uma análise de variância (ANOVA) para verificar se o valor dos pedidos é influenciado pelo tipo de entregador e pelo modal utilizado. Os resultados da ANOVA fatorial indicaram que tanto o tipo quanto o modal têm efeito significativo sobre o valor médio dos pedidos. 
 
+<div align="center">
 <img width="701" height="151" alt="Image" src="https://github.com/user-attachments/assets/3ab4ea5a-2837-4217-8c4d-7b24a2e68e9a" />
+</div>
 
 ```
 anova_result <- aov(order_amount ~ driver_type * driver_modal, data = dados_completos)
@@ -452,7 +470,9 @@ summary(anova_result)
 TukeyHSD(anova_result)
 ```
 
+<div align="center">
 <img width="701" height="517" alt="Image" src="https://github.com/user-attachments/assets/0ef8bf02-450e-4992-8d12-a435dee21ac7" />
+</div>
 
 Uma análise post-hoc com o teste de Tukey confirmou que há diferenças estatísticas relevantes entre os grupos, sugerindo que, por exemplo, entregadores autônomos em motos podem operar em nichos diferentes dos entregadores contratados em bicicletas.
 
@@ -575,7 +595,9 @@ billing_summary <- billing %>%
 print(billing_summary)
 ```
 
+<div align="center">
 <img width="703" height="155" alt="Image" src="https://github.com/user-attachments/assets/3556310a-c2fb-45e3-a25a-a2b82b8d0859" />
+</div>
 
 
 Essas estatísticas oferecem um panorama geral do faturamento hospitalar, permitindo visualizar a média de cobrança por tratamento, além de desvios que podem indicar outliers. Nessa imagem, o faturamento apresenta alta dispersão, o que sugere a necessidade de analisar os fatores que influenciam o valor cobrado, como tipo de tratamento ou método de pagamento. Além disso, a diferença entre média e mediana indica que existem valores mais baixos puxando a média para baixo, o que pode influenciar a precificação ou as estratégias comerciais da clínica.
@@ -598,7 +620,9 @@ billing_treatments <- billing %>%
 print(billing_treatments)
 ```
 
+<div align="center">
 <img width="698" height="233" alt="Image" src="https://github.com/user-attachments/assets/076dc931-11e0-40b5-89cd-28d1dc6beb58" />
+</div>
 
 
 Isso revela, por exemplo, quais tratamentos são mais lucrativos e quais têm maior volume. A análise dos tratamentos revela que o faturamento total está mais associado ao volume de atendimentos do que ao valor médio por consulta. A quimioterapia, embora não tenha o maior preço unitário, gerou a maior receita total devido ao maior número de sessões realizadas. Já a ressonância magnética apresentou o maior valor médio por consulta, mas o menor volume reduziu seu impacto no total faturado.
@@ -614,7 +638,10 @@ appointments_status <- appointments %>%
   count(status)
 print(appointments_status)
 ```
+
+<div align="center">
 <img width="702" height="210" alt="Image" src="https://github.com/user-attachments/assets/5f600940-7544-4041-9096-655f49ab37f5" />
+</div>
 
 
 Esse tipo de informação é crucial para medir absenteísmo e problemas operacionais.
@@ -630,7 +657,9 @@ appointments_by_specialty <- appointments %>%
 print(appointments_by_specialty)
 ```
 
+<div align="center">
 <img width="708" height="193" alt="Image" src="https://github.com/user-attachments/assets/d911b113-bcda-4888-8342-5e7bae09361d" />
+</div>
 
 
 Com isso, conseguimos ver quais especialidades concentram maior número de atendimentos.
@@ -654,7 +683,9 @@ ggplot(billing_treatments, aes(x = reorder(treatment_type, -media_valor), y = me
   coord_flip()
 ```
 
+<div align="center">
 <img width="516" height="333" alt="Image" src="https://github.com/user-attachments/assets/51503b03-fcef-489b-b10f-5309e380ec4c" />
+</div>
 
 
 #### Evolução de Consultas por Mês
@@ -675,7 +706,10 @@ ggplot(appointments_monthly, aes(x = mes, y = n)) +
   )
 ```
 
+
+<div align="center">
 <img width="529" height="324" alt="Image" src="https://github.com/user-attachments/assets/e0afa398-fb7c-490b-b437-451064997161" />
+</div>
 
 O gráfico mostra como o volume de consultas evoluiu ao longo do tempo.
 
@@ -722,7 +756,9 @@ ggplot(billing_avg_monthly, aes(x = mes, y = media)) +
   )
 ```
 
+<div align="center">
 <img width="515" height="324" alt="Image" src="https://github.com/user-attachments/assets/741f8170-dfe7-43c1-857c-31180c86096a" />
+</div>
 
 
 Isso ajuda a avaliar sazonalidade e a saúde financeira do hospital ao longo do tempo.
@@ -751,7 +787,9 @@ ggplot(appointments_temporal_status, aes(x = mes, y = n, color = status)) +
   )
 ```
 
+<div align="center">
 <img width="512" height="328" alt="Image" src="https://github.com/user-attachments/assets/de0a007e-0ed7-4e9c-ba08-e2a1c6ff8cff" />
+</div>
 
 
 A visualização mostra se cancelamentos e ausências estão aumentando, ajudando na tomada de decisões para mitigar essas ocorrências.
@@ -767,7 +805,9 @@ modelo <- lm(amount ~ treatment_type + payment_method, data = billing %>%
 summary(modelo)
 ```
 
+<div align="center">
 <img width="706" height="438" alt="Image" src="https://github.com/user-attachments/assets/9c6e1f6d-9ef9-42a1-9ffb-a86268c3251a" />
+</div>
 
 A regressão mostra quais variáveis têm impacto significativo no faturamento. A regressão linear indicou que o tipo de tratamento ressonância magnética (MRI) está associado a um aumento estatisticamente significativo no valor faturado, em comparação a outros tratamentos. No entanto, o modelo como um todo não é significativo, e as variáveis utilizadas explicam menos de 4% da variação nos valores cobrados. Isso sugere que outras variáveis clínicas ou operacionais não incluídas no banco de dados têm maior influência sobre o custo final. Além disso, a forma de pagamento não afeta o valor faturado, o que pode indicar uma política de cobrança padronizada no hospital.
 
@@ -781,8 +821,9 @@ anova_model <- aov(amount ~ treatment_type, data = billing %>%
                      left_join(treatments, by = "treatment_id"))
 summary(anova_model)
 ```
-
+<div align="center">
 <img width="695" height="95" alt="Image" src="https://github.com/user-attachments/assets/1416fb76-27c4-4898-9f55-cf9b13b9f1a1" />
+</div>
 
 Se o valor-p da ANOVA for menor que 0.05, concluímos que há diferenças significativas entre os grupos. Com base na ANOVA, não há diferença estatisticamente significativa no valor médio faturado entre os diferentes tipos de tratamento registrados nesse hospital. Isso pode indicar uma padronização nos custos praticados, ou que outras variáveis (como o tempo de tratamento, complexidade individual ou método de pagamento) têm influência maior sobre os valores cobrados.
 
@@ -818,7 +859,9 @@ ggplot(pacientes_cluster, aes(x = idade, y = total_gasto, color = grupo)) +
   theme_minimal()
 ```
 
+<div align="center">
 <img width="910" height="385" alt="Image" src="https://github.com/user-attachments/assets/64b50349-f315-434d-885c-0d0cc73dd6a9" />
+</div>
 
 
 A visualização mostra diferentes perfis de pacientes, por exemplo, idosos com alto gasto ou jovens com poucas consultas.
@@ -840,7 +883,9 @@ tempo_espera <- appointments %>%
 summary(tempo_espera$dias_espera)
 ```
 
+<div align="center">
 <img width="813" height="84" alt="Image" src="https://github.com/user-attachments/assets/029f1251-f49b-4779-bc6f-846d1201a004" />
+</div>
 
 Com essa análise, é possível identificar gargalos no atendimento inicial ao paciente, algo crucial para medir eficiência e satisfação. Esse resultado levanta um sinal de alerta: a demora para o primeiro atendimento é alta, o que pode impactar diretamente na qualidade do cuidado oferecido. Além disso, a presença de valores negativos indica que há dados inconsistentes no sistema, que precisam ser verificados ou limpos para evitar interpretações incorretas.
 
