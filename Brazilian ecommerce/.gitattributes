@@ -1,0 +1,3 @@
+*.qmd linguist-language=R
+*.R linguist-language=R
+*.png linguist-documentation
